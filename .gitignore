@@ -1,3 +1,6 @@
+XSB/build/*.dep
+**/.DS_Store
+.DS_Store
 XSB/*.tmp
 XSB/.xsb
 XSB/admin/windows/*.exe
