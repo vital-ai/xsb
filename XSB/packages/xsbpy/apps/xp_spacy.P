@@ -1,0 +1,166 @@
+:- import member/2 from basics.                                                 
+:- import pyfunc/3, pydot/4 from xsbpy.                                                  
+
+:- export load_and_proc/2, token_assert/0, token_info/7, token_info_raw/7, entity/2.
+:- export show_all_trees/0.
+
+:- dynamic token_info_raw/7, token_childOf/2.
+:- dynamic python_obj/2.
+:- index(token_childOf/2,[1,2]).
+:- index(token_info_raw/7,[1,6]).
+:- import python_obj/2 from usermod.
+
+% Use load_and_proc/2 to load a Spacy model and process it into a document.
+% This predicate asserts python_object/2 facts that are used by other predicates.
+%
+% Use token_assert/2 to load the Spacy dependency graph into Prolog.
+% Token info, and token info raw provide nodes of the Prolog dependency graph
+% 
+% show_all_trees/0 gives a crude textual depiction of the dependency graph in
+% tree form.
+%
+
+%----------------
+% load_and_proc(en_core_web_sm,'ta1doc.txt').
+load_and_proc(Model,File):-
+    retractall(python_obj(_,_)),
+    pyfunc(spacy,load(Model),NLP),                                              
+    pydot(spacy,NLP,add_pipe('merge_entities'),_),
+%    pymeth(spacy,NLP,add_pipe('merge_noun_chunks'),_),                     
+    pyfunc(xp_spacy,doc_from_file(File,NLP),Doc),                              
+    assert(python_obj(nlp,NLP)),
+    assert(python_obj(doc,Doc)).
+                                                                                
+%----------------
+% filters out punctuation from the dependency graph.
+token_info(CIndex,_Text,_Lemma,Pos,_Tag,Dep,Ent_type):-
+    token_info_raw(CIndex,_Text,_Lemma,Pos,_Tag,Dep,Ent_type),
+    Dep \= punct,Pos \= 'SPACE'.
+
+token_assert():- 
+    python_obj(doc,Doc),
+    token_assert(Doc).                                                             
+
+% Below                                                                         
+% POS: The simple UPOS part-of-speech tag.                                      
+% Tag: The detailed part-of-speech tag.                                         
+% Dep: Syntactic dependency, i.e. the relation between tokens.                  
+token_assert(Doc):-
+    retractall(token_info_raw(_,_,_,_,_,_,_)),
+    retractall(token_childOf(_,_)),
+    pyfunc(xp_spacy,get_token_info(Doc),Toks),                                 
+    member(Tok,Toks),
+%    writeln(Tok),
+    Tok = ''(Index,_Text,_Lemma,_Pos,_Tag,Dep,_Type,Chln), %Dep \== punct,
+    assert(token_info_raw(Index,_Text,_Lemma,_Pos,_Tag,Dep,_Type)),
+    member(Child,Chln),
+    assert(token_childOf(Index,Child)),
+    fail.
+token_assert(_Doc).
+
+%----------------
+
+show_all_trees():-
+    sentence_root(Token),
+    Token = token_info(Index,_Text,_Lemma,_Pos,_Tag,_,_Type),
+    show_root(Index),
+    fail.
+show_all_trees().
+
+sentence_root(Token):- 
+    token_info_raw(Index,_Text,_Lemma,Pos,_Tag,'ROOT',_Type),
+    Pos \== 'SPACE',
+    Token = token_info(Index,_Text,_Lemma,Pos,_Tag,'ROOT',_Type).
+
+show_root(Index):- 
+    writeln('---------------------'),
+    subtree_span(Index,Words),
+    writeln(Words),
+    nl,
+%    get_noun_phrase(Index,NP_Words),
+%   write('NP: '),writeln(NP_Words),
+    fail.
+show_root(Index):-
+    nl,
+    show_tree(Index),
+    nl,
+    fail.
+show_root(_Index).
+
+subtree_span(Index,Words):-
+    setof(Desc,descendant(Index,Desc),Inds),
+    findall(Text,(member(Ind,Inds),get_text(Ind,Text)),Words).
+
+get_text(Ind,Text):- 
+    token_info(Ind,Text,_Lemma,_Pos,_Tag,_Dep,_Ent_type).
+    
+descendant(Index,Index).
+descendant(Index,Desc):-
+    token_childOf(Index,Desc1),
+    descendant(Desc1,Desc).
+    
+show_tree(Index):-
+    token_info(Index,_Text,_Lemma,_Pos,_Tag,Dep,Ent_type),
+    writeln(token_info(Index,_Text,_Lemma,_Pos,_Tag,Dep,Ent_type)),
+    show_tree(Index,3).
+show_tree(_Index).
+
+show_tree(Index,N):-
+    token_childOf(Index,CIndex),
+    token_info(CIndex,_Text,_Lemma,_Pos,_Tag,Dep,Ent_type),
+    tab(N),writeln(token_info(CIndex,_Text,_Lemma,_Pos,_Tag,Dep,Ent_type)),
+    N1 is N + 3,
+    show_tree(CIndex,N1),
+    fail.
+
+%-----------------------------------------------
+% utility -- returns all entities of a given type.
+entity(Ent_type,Token):- 
+    token_info(Index,_Text,_Lemma,_Pos,_Tag,Dep,Ent_type),
+    Token = token_info(Index,_Text,_Lemma,_Pos,_Tag,Dep,Ent_type).
+
+end_of_file.
+
+%token_report():-                                                                
+%    python_obj(doc,Doc),
+%    token_report(Doc).
+
+/* no longer needed -- just load tokens into Prolog and use.
+%token_report(Doc):-                                                             
+%    writeln('-----------------------------------------------'),                 
+%    pyfunc(xp_spacy,get_token_info(Doc),Toks),                                 
+%    member(Tok,Toks),                                                           
+%    Tok = ''(_Index,_Text,_Lemma,_Pos,_Tag,Dep,_Type,_Chln),Dep \== punct,
+%     writeln(Tok),                                                              
+%    fail.                                                                       
+%token_report(_Doc).
+
+% obsolete -- use load_and_proc/2.
+%spacy_load_model(Model,NLP):-                                                   
+%    pyfunc(spacy,load(Model),NLP).                                              
+                                                                                
+%spacy_proc_file(NLP,File,Doc):-                                                 
+%    pyfunc(xp_spacy,doc_from_file(File,NLP),Doc).                              
+                                                                                
+% obsolete -- this can easily be done by traversing the dependeny graph in Prolog.
+np_report():-                                                                   
+    python_obj(doc,Doc),
+    np_report(Doc).                                                             
+np_report(Doc):-                                                                
+    pyfunc(xp_spacy,get_nps(Doc),Nps),                                         
+    member(Np,Nps),                                                             
+    writeln(Np),                                                                
+    fail.                                                                       
+np_report(_Doc).                                                                
+                                                                                
+% obsolete -- this can easily be done by checking the dependeny graph in Prolog.
+ent_report():-                                                                  
+    python_obj(doc,Doc),
+    ent_report(Doc).                                                            
+ent_report(Doc):-                                                               
+    pyfunc(xp_spacy,get_ents(Doc),Nps),                                        
+    member(Np,Nps),                                                             
+    writeln(Np),                                                                
+    fail.                                                                       
+ent_report(_Doc).                                                               
+                                      

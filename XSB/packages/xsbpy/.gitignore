@@ -1,0 +1,15 @@
+autom4te.cache/*
+*.log
+*~
+*xwam
+*__pycache*
+test_xsbpy_out.txt
+.#*
+\#*
+*.so
+*.csav
+*.cnew
+/xsb2py_connect_defs.h
+/Installation_summary
+/config.status
+/configvars.sh

@@ -1,0 +1,35 @@
+
+% Very simple example XSB query's for RDF input and output.  See
+% xsbpy_rdflib.py for details of how rdflib graph objects are
+% translated to Prolog data structures.
+
+:- import member/2, length/2 from basics.
+?- [xsbpy].
+
+% read_rdf/3 has been tested on turtle, nt, and nquads, returning list
+% of triples that corresponds to an RDFlib graph.  Different formatts
+% are often read in via plugins, meaning that new formats need to be
+% tested.  Sample files are in the apps directory.
+% for an understandable demo try: 
+% ?- read_rdf(File,Format,TripleList),member(Triple,TripList).
+read_rdf(File,Format,TripleList):-
+   member(Format,[turtle,nt]),!,
+   pyfunc(xsbpy_rdflib,rdflib_parse(File),[format=Format],TripleList),
+   length(TripleList,Len),write(Len),writeln(' lines read.').
+read_rdf(File,nquads,TripleList):- !,
+   pyfunc(xsbpy_rdflib,rdflib_parse_nquads(File),TripleList),
+   length(TripleList,Len),write(Len),writeln(' lines read.').
+read_rdf(_File,Format,_):-
+    write('haven\'t tested '),writeln(Format).
+
+%---------------------------------------------------------------------------
+
+% Writes a Prolog list corresponding to an rdflib graph to a File in a
+% given Format.  This has been tested on nt and turtle, and may not work for 
+% other formats.
+%
+% ?- pyfunc(xsbpy_rdflib,rdflib_write_file(_Ret,File),[format=Format],_Ret1).
+%
+% to test, try e.g., 
+%    read_rdf(File,Format,TripleList),
+%    pyfunc(xsbpy_rdflib,rdflib_write_file(_Ret,File),[format=Format],_Ret`)

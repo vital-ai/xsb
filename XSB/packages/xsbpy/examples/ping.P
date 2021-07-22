@@ -1,0 +1,8 @@
+
+ping(N):- N =< 0,
+	  writeln('\nXSB is better,  So there!').
+
+ping(N):-
+     N1 is N - 1,
+     write(N),writeln(': XSB is better'),
+     pyfunc('test/pong',pong(N1),_).
