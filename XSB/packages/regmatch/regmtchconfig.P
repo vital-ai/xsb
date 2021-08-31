@@ -45,6 +45,11 @@ make_xsb_re_matchH(CC, CC_opts, LoaderFlags) :-
     write('%% Compiler flags: '), writeln(CC_opts),
     writeln(':- import slash/1 from machine.'),
     writeln(':- export do_regmatch__/5, do_bulkmatch__/5, do_regsubstitute__/4, do_regsubstring__/4, do_regcharlist_to_string__/2.'),
+
+
+    writeln(':- export localdatetime/1, to_timestamp/3, from_date/2, timestamps_age/3, from_timestamp/3, to_date/2, to_days/2.'),
+
+   
     write(':- ldoption('''),
     write(LoaderFlags),
     writeln(''').'),
